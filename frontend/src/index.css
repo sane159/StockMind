@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 220 20% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+    --primary: 234 85% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 94%;
+    --secondary-foreground: 220 15% 40%;
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 220 15% 92%;
+    --accent-foreground: 220 20% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 234 85% 55%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 224 20% 6%;
+    --foreground: 220 15% 90%;
+    --card: 224 20% 10%;
+    --card-foreground: 220 15% 90%;
+    --popover: 224 20% 10%;
+    --popover-foreground: 220 15% 90%;
+    --primary: 234 85% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 224 15% 15%;
+    --secondary-foreground: 220 15% 70%;
+    --muted: 224 15% 15%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 224 15% 18%;
+    --accent-foreground: 220 15% 90%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 50% 38%;
+    --success-foreground: 0 0% 100%;
+    --border: 224 15% 16%;
+    --input: 224 15% 18%;
+    --ring: 234 85% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground antialiased bg-background;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  code, .font-mono {
+    font-family: "SF Mono", "Cascadia Code", "Source Code Pro", ui-monospace, monospace;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-card rounded-xl border border-border/60 shadow-[0_1px_0_hsl(var(--border)/0.35)];
+  }
+  .card-hover {
+    @apply bg-card rounded-xl border border-border/60 hover:border-primary/30 hover:shadow-[0_10px_30px_-26px_hsl(var(--primary)/0.55)] transition-all;
+  }
+  .card-subtle {
+    @apply rounded-xl border border-border/40 bg-accent/20;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-[13px] font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary text-secondary-foreground border border-border rounded-lg text-[13px] font-medium hover:bg-secondary/80 active:scale-[0.98] transition-all;
+  }
+  .input-field {
+    @apply w-full h-10 px-3 rounded-lg border border-border bg-background text-[13px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors;
+  }
+}
+
+/* Dark mode adjustments */
+.dark .card-hover:hover {
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+/* Scrollbar (opt-in via className="scrollbar") */
+@layer base {
+  .scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+  }
+
+  .scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.22);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.38);
+  }
+
+  .scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@panwatch/api": ["./packages/api/src/index.ts"],
+      "@panwatch/api/*": ["./packages/api/src/*"],
+      "@panwatch/base-ui": ["./packages/base-ui/src/index.ts"],
+      "@panwatch/base-ui/*": ["./packages/base-ui/src/*"],
+      "@panwatch/biz-ui": ["./packages/biz-ui/src/index.ts"],
+      "@panwatch/biz-ui/*": ["./packages/biz-ui/src/*"]
+    }
+  },
+  "include": ["src", "packages/*/src"]
+}

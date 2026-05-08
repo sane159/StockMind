@@ -1,0 +1,26 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/*.db
+data/*.json
+data/ca-bundle.pem
+.docs
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+static/
+data/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+pnpm-debug.log*
+
+# Claude
+.claude/
+*.tsbuildinfo
