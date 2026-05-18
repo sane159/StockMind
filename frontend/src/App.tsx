@@ -69,7 +69,7 @@ function App() {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
   const desktopMoreRef = useRef<HTMLDivElement | null>(null)
   const mobileMoreRef = useRef<HTMLDivElement | null>(null)
-  const repoUrl = 'https://github.com/TNT-Likely/PanWatch'
+  const repoUrl = 'https://github.com/sane159/StockMind'
 
   useEffect(() => {
     appApi.version()
