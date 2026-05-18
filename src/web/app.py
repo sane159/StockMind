@@ -21,6 +21,7 @@ from src.web.api import (
     context,
     dashboard,
     chat,
+    portfolio,
 )
 from src.web.api import insights
 from src.web.api.auth import get_current_user
@@ -122,6 +123,12 @@ app.include_router(
     chat.router,
     prefix="/api/chat",
     tags=["chat"],
+    dependencies=protected,
+)
+app.include_router(
+    portfolio.router,
+    prefix="/api/portfolio",
+    tags=["portfolio"],
     dependencies=protected,
 )
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Copy, Download, ExternalLink, RefreshCw, Share2, Sparkles } from 'lucide-react'
-import { insightApi, stocksApi } from '@panwatch/api'
+import { Copy, Download, ExternalLink, RefreshCw, Share2, Sparkles, Plus, Pencil, Trash2 } from 'lucide-react'
+import { insightApi, stocksApi, portfolioApi } from '@panwatch/api'
 import { getMarketBadge } from '@panwatch/biz-ui'
 import { useLocalStorage } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@panwatch/base-ui/components/ui/dialog'
@@ -89,10 +89,13 @@ interface HistoryRecord {
 }
 
 interface PortfolioPosition {
+  id: number
   symbol: string
   market: string
   quantity: number
   cost_price: number
+  stop_loss: number | null
+  target_price: number | null
   market_value_cny: number | null
   pnl: number | null
 }
@@ -375,6 +378,16 @@ export default function StockInsightModal(props: {
   } | null>(null)
   const [holdingLoaded, setHoldingLoaded] = useState(false)
   const [holdingLoadError, setHoldingLoadError] = useState(false)
+  const [positionDialogOpen, setPositionDialogOpen] = useState(false)
+  const [editingPosition, setEditingPosition] = useState<PortfolioPosition | null>(null)
+  const [positionForm, setPositionForm] = useState({
+    quantity: '',
+    entry_price: '',
+    stop_loss: '',
+    target_price: '',
+  })
+  const [positionSaving, setPositionSaving] = useState(false)
+  const [holdingPositions, setHoldingPositions] = useState<PortfolioPosition[]>([])
   const autoTriggeredRef = useRef<Record<string, number>>({})
   const stockCacheRef = useRef<Record<string, StockItem>>({})
   const resolvedName = useMemo(() => props.stockName || quote?.name || symbol, [props.stockName, quote?.name, symbol])
@@ -570,19 +583,23 @@ export default function StockInsightModal(props: {
       let cost = 0
       let marketValue = 0
       let pnl = 0
+      const matched: PortfolioPosition[] = []
       for (const acc of data?.accounts || []) {
         for (const p of acc.positions || []) {
           if (p.symbol !== symbol || p.market !== market) continue
+          matched.push(p)
           quantity += Number(p.quantity || 0)
           cost += Number(p.cost_price || 0) * Number(p.quantity || 0)
           marketValue += Number(p.market_value_cny || 0)
           pnl += Number(p.pnl || 0)
         }
       }
+      setHoldingPositions(matched)
       if (quantity > 0) setHoldingAgg({ quantity, cost, unitCost: cost / quantity, marketValue, pnl })
       else setHoldingAgg(null)
     } catch {
       setHoldingAgg(null)
+      setHoldingPositions([])
       setHoldingLoadError(true)
     } finally {
       setHoldingLoaded(true)
@@ -644,6 +661,76 @@ export default function StockInsightModal(props: {
       setReports([])
     }
   }, [symbol, resolvedName])
+
+  const openAddPosition = useCallback(() => {
+    setEditingPosition(null)
+    setPositionForm({
+      quantity: '',
+      entry_price: quote?.current_price != null ? String(quote.current_price) : '',
+      stop_loss: '',
+      target_price: '',
+    })
+    setPositionDialogOpen(true)
+  }, [quote?.current_price])
+
+  const openEditPosition = useCallback((pos: PortfolioPosition) => {
+    setEditingPosition(pos)
+    setPositionForm({
+      quantity: String(pos.quantity),
+      entry_price: String(pos.cost_price),
+      stop_loss: pos.stop_loss != null ? String(pos.stop_loss) : '',
+      target_price: pos.target_price != null ? String(pos.target_price) : '',
+    })
+    setPositionDialogOpen(true)
+  }, [])
+
+  const handleSavePosition = useCallback(async () => {
+    const qty = parseInt(positionForm.quantity, 10)
+    const price = parseFloat(positionForm.entry_price)
+    if (!qty || qty <= 0 || !price || price <= 0) {
+      toast('请填写有效的数量和成本价', 'error')
+      return
+    }
+    setPositionSaving(true)
+    try {
+      if (editingPosition) {
+        await portfolioApi.updatePosition(editingPosition.id, {
+          quantity: qty,
+          entry_price: price,
+          stop_loss: positionForm.stop_loss ? parseFloat(positionForm.stop_loss) : null,
+          target_price: positionForm.target_price ? parseFloat(positionForm.target_price) : null,
+        })
+      } else {
+        await portfolioApi.createPosition({
+          symbol,
+          market,
+          name: resolvedName,
+          quantity: qty,
+          entry_price: price,
+          stop_loss: positionForm.stop_loss ? parseFloat(positionForm.stop_loss) : null,
+          target_price: positionForm.target_price ? parseFloat(positionForm.target_price) : null,
+        })
+      }
+      setPositionDialogOpen(false)
+      await loadHoldingAgg()
+      toast(editingPosition ? '持仓已更新' : '持仓已添加', 'success')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : '操作失败', 'error')
+    } finally {
+      setPositionSaving(false)
+    }
+  }, [positionForm, editingPosition, symbol, market, resolvedName, loadHoldingAgg, toast])
+
+  const handleDeletePosition = useCallback(async (pos: PortfolioPosition) => {
+    if (!confirm(`确认删除 ${pos.symbol} 的持仓记录？`)) return
+    try {
+      await portfolioApi.deletePosition(pos.id)
+      await loadHoldingAgg()
+      toast('持仓已删除', 'success')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : '删除失败', 'error')
+    }
+  }, [loadHoldingAgg, toast])
 
   const loadCore = useCallback(async () => {
     if (!symbol) return
@@ -1395,40 +1482,71 @@ export default function StockInsightModal(props: {
                       <div className="rounded bg-accent/15 px-2 py-1.5"><div className="text-[10px] text-muted-foreground">总市值</div><div className="font-mono">{formatMarketCap(quote?.total_market_value, market)}</div></div>
                     </div>
                     <div className="mt-3 border-t border-border/50 pt-3">
-                      <div className="text-[11px] text-muted-foreground mb-2">持仓信息</div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[11px] text-muted-foreground">持仓信息</div>
+                        <button
+                          onClick={openAddPosition}
+                          className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          添加持仓
+                        </button>
+                      </div>
                       {holdingAgg ? (
-                        <div className="grid grid-cols-2 gap-2 text-[12px]">
-                          <div className="rounded bg-emerald-500/10 px-2 py-1.5">
-                            <div className="text-[10px] text-muted-foreground">持仓数量</div>
-                            <div className="font-mono">{holdingAgg.quantity}</div>
-                          </div>
-                          <div className="rounded bg-emerald-500/10 px-2 py-1.5">
-                            <div className="text-[10px] text-muted-foreground">持仓成本(单价)</div>
-                            <div
-                              className={`font-mono ${
-                                quote?.current_price != null
-                                  ? quote.current_price > holdingAgg.unitCost
-                                    ? 'text-rose-500'
-                                    : quote.current_price < holdingAgg.unitCost
-                                      ? 'text-emerald-500'
-                                      : 'text-foreground'
-                                  : 'text-foreground'
-                              }`}
-                            >
-                              {formatNumber(holdingAgg.unitCost)}
+                        <>
+                          <div className="grid grid-cols-2 gap-2 text-[12px]">
+                            <div className="rounded bg-emerald-500/10 px-2 py-1.5">
+                              <div className="text-[10px] text-muted-foreground">持仓数量</div>
+                              <div className="font-mono">{holdingAgg.quantity}</div>
+                            </div>
+                            <div className="rounded bg-emerald-500/10 px-2 py-1.5">
+                              <div className="text-[10px] text-muted-foreground">持仓成本(单价)</div>
+                              <div
+                                className={`font-mono ${
+                                  quote?.current_price != null
+                                    ? quote.current_price > holdingAgg.unitCost
+                                      ? 'text-rose-500'
+                                      : quote.current_price < holdingAgg.unitCost
+                                        ? 'text-emerald-500'
+                                        : 'text-foreground'
+                                    : 'text-foreground'
+                                }`}
+                              >
+                                {formatNumber(holdingAgg.unitCost)}
+                              </div>
+                            </div>
+                            <div className="rounded bg-emerald-500/10 px-2 py-1.5">
+                              <div className="text-[10px] text-muted-foreground">持仓市值</div>
+                              <div className="font-mono">{formatCompactNumber(holdingAgg.marketValue)}</div>
+                            </div>
+                            <div className="rounded bg-emerald-500/10 px-2 py-1.5">
+                              <div className="text-[10px] text-muted-foreground">总盈亏</div>
+                              <div className={`font-mono ${holdingAgg.pnl >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                {holdingAgg.pnl >= 0 ? '+' : ''}{formatCompactNumber(holdingAgg.pnl)}
+                              </div>
                             </div>
                           </div>
-                          <div className="rounded bg-emerald-500/10 px-2 py-1.5">
-                            <div className="text-[10px] text-muted-foreground">持仓市值</div>
-                            <div className="font-mono">{formatCompactNumber(holdingAgg.marketValue)}</div>
+                          <div className="mt-2 flex gap-2">
+                            {holdingPositions.map(pos => (
+                              <div key={pos.id} className="flex items-center gap-1">
+                                <button
+                                  onClick={() => openEditPosition(pos)}
+                                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                  编辑
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePosition(pos)}
+                                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  删除
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                          <div className="rounded bg-emerald-500/10 px-2 py-1.5">
-                            <div className="text-[10px] text-muted-foreground">总盈亏</div>
-                            <div className={`font-mono ${holdingAgg.pnl >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                              {holdingAgg.pnl >= 0 ? '+' : ''}{formatCompactNumber(holdingAgg.pnl)}
-                            </div>
-                          </div>
-                        </div>
+                        </>
                       ) : (
                         <div className="text-[11px] text-muted-foreground">未在持仓中</div>
                       )}
@@ -1802,6 +1920,70 @@ export default function StockInsightModal(props: {
             )}
 
 
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={positionDialogOpen} onOpenChange={setPositionDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingPosition ? '编辑持仓' : '添加持仓'}</DialogTitle>
+            <DialogDescription>
+              {symbol} {resolvedName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">数量</label>
+              <input
+                type="number"
+                value={positionForm.quantity}
+                onChange={(e) => setPositionForm({ ...positionForm, quantity: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+                placeholder="持仓数量"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">成本价</label>
+              <input
+                type="number"
+                step="0.01"
+                value={positionForm.entry_price}
+                onChange={(e) => setPositionForm({ ...positionForm, entry_price: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+                placeholder="买入成本价"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">止损价（可选）</label>
+              <input
+                type="number"
+                step="0.01"
+                value={positionForm.stop_loss}
+                onChange={(e) => setPositionForm({ ...positionForm, stop_loss: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+                placeholder="止损价格"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">目标价（可选）</label>
+              <input
+                type="number"
+                step="0.01"
+                value={positionForm.target_price}
+                onChange={(e) => setPositionForm({ ...positionForm, target_price: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+                placeholder="目标价格"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setPositionDialogOpen(false)} disabled={positionSaving}>
+              取消
+            </Button>
+            <Button onClick={handleSavePosition} disabled={positionSaving}>
+              {positionSaving ? '保存中...' : '保存'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

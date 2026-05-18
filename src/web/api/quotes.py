@@ -90,7 +90,7 @@ def get_quotes_batch(payload: QuoteBatchRequest):
 
     quotes_by_market: dict[MarketCode, dict[str, dict]] = {}
     for market_code, symbols in market_items.items():
-        tencent_symbols = [_tencent_symbol(s, market_code) for s in symbols]
+        tencent_symbols = [_tencent_symbol(s) for s in symbols]
         try:
             items = _fetch_tencent_quotes(tencent_symbols)
         except Exception:

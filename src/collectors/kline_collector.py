@@ -66,11 +66,11 @@ def _fetch_eastmoney_klines(
 
     last_err = None
     best: list[KlineData] = []
-    for attempt in range(2):
+    for attempt in range(3):
         try:
             with httpx.Client(
                 follow_redirects=True,
-                timeout=12 + attempt * 6,
+                timeout=15 + attempt * 5,
                 headers=headers,
             ) as client:
                 resp = client.get(EASTMONEY_KLINE_URL, params=params)
@@ -454,8 +454,8 @@ class KlineCollector:
                         )
                     )
 
-            # CN: Tencent 在高 days 时可能只返回近几年，尝试 Eastmoney 补全更长历史
-            need_em = days >= 500 or len(klines) < max(120, int(days * 0.6))
+            # CN: 仅在腾讯无数据或需要超长历史时才尝试 Eastmoney
+            need_em = days >= 500 or not klines
             if need_em:
                 em_target_days = min(max(days, 3000), 20000)
                 em = _fetch_eastmoney_klines(symbol, em_target_days)
