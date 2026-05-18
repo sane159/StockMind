@@ -74,7 +74,7 @@ conda activate stockmind
 pip install -r requirements.txt
 python server.py
 
-# 前端（新终端）
+# 前端
 cd frontend && npm install && npm run dev
 ```
 
